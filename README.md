@@ -1,12 +1,22 @@
-# 🌙 Luna - Menstrual Cycle Companion
+# 🌙 Luna - Physiology-First Period Prediction
 
-A hackathon MVP for tracking Basal Body Temperature (BBT) to monitor menstrual cycle phases. Luna combines hardware (ESP32), backend API, and a beautiful mobile-responsive dashboard.
+A hackathon MVP for predicting period start dates more accurately for people with irregular cycles by detecting ovulation using basal body temperature (BBT), not calendar averages.
+
+## Core Concept
+
+**This is NOT a calendar-based period tracker.**
+
+Luna is physiology-first: all predictions are derived from daily BBT readings. The app does not rely on cycle length or last period start date. Instead, it focuses on:
+- **Ovulation detection** → Period prediction (~12–14 days after ovulation)
+- **Real body signals, not averages**
+- **Designed for irregular cycles by default**
+- **Confidence-based predictions** (predicted windows, not single dates)
 
 ## Features
 
 - **Hardware**: ESP32-based device with DS18B20 temperature sensor, capacitive touch button, and NeoPixel LED ring
-- **Backend**: Node.js + Express API with cycle phase calculation logic
-- **Frontend**: React dashboard with BBT graphs, phase indicators, and daily insights
+- **Backend**: Node.js + Express API with physiology-based ovulation detection and period prediction
+- **Frontend**: React dashboard with BBT graphs, ovulation markers, and body literacy insights
 - **Mobile-Responsive**: Works beautifully on phones, tablets, and desktops
 
 ## Project Structure
@@ -89,15 +99,19 @@ Luna can use Google Gemini AI to generate personalized, contextual tips based on
 
 Without the API key, Luna will use curated static tips that are still helpful and informative.
 
-## Cycle Phase Logic
+## Physiology-First Detection Logic
 
-The backend calculates cycle phases based on:
-- **Menstrual** (Days 1-5): Lower BBT
-- **Follicular** (Days 6-13): Rising BBT
-- **Ovulation** (Days 14-16): Peak BBT (0.3-0.5°C rise)
-- **Luteal** (Days 17-28): Sustained high BBT
+The backend uses BBT patterns to detect phases, not calendar dates:
 
-The system detects ovulation by analyzing BBT rise patterns over recent readings.
+- **Ovulation Detection**: Uses the "3-over-6" rule - 3 consecutive days at least 0.3°C above the previous 6 days' average
+- **Period Prediction**: Predicts period start 12-14 days after detected ovulation (with confidence windows)
+- **Phase Detection**: Determines current phase based on:
+  - Pre-ovulation: Lower BBT range
+  - Ovulation: Detected temperature rise
+  - Luteal: Sustained elevated BBT post-ovulation
+  - Pre-menstrual: Approaching period window
+
+The system works for irregular cycles because it doesn't assume cycle length - it detects actual physiological events.
 
 ## Hardware Components
 

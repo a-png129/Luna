@@ -3,10 +3,8 @@ import './BottomNav.css';
 
 function BottomNav({ activeTab, onTabChange }) {
   const tabs = [
-    { id: "data", icon: "/images/data-icon.png", emoji: "📊", label: "Data" },
-    { id: "calendar", icon: "/images/calendar-icon.png", emoji: "📅", label: "Calendar" },
     { id: "home", icon: "/images/moon.png", emoji: "🌙", label: "Home", isMoon: true },
-    { id: "tips", icon: "/images/tips-icon.png", emoji: "💡", label: "Tips" },
+    { id: "tips", icon: "/images/tips-icon.png", emoji: "💡", label: "Insights" },
     { id: "settings", icon: "/images/settings-icon.png", emoji: "⚙️", label: "Settings" },
   ];
 

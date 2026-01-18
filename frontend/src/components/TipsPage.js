@@ -71,8 +71,8 @@ function TipsPage() {
             <span className="mascot-emoji-fallback-small" style={{ display: 'none' }}>🦘</span>
           </div>
         </div>
-        <h1 className="tips-title">Cycle Tips & Info</h1>
-        <p className="tips-subtitle">Learn to work with your cycle</p>
+        <h1 className="tips-title">Body Literacy & Insights</h1>
+        <p className="tips-subtitle">Understand your body's signals</p>
       </div>
 
       {/* Decorative line */}
@@ -80,27 +80,32 @@ function TipsPage() {
         <div className="gradient-line"></div>
       </div>
 
-      {/* Phase-specific tips */}
-      {tipsData.allPhaseTips.map((phaseInfo) => (
-        <div key={phaseInfo.phase} className="phase-tips-card">
+      {/* Current Phase Tips (Highlighted) */}
+      {tipsData.currentPhaseTips && (
+        <div className="phase-tips-card current-phase-card" style={{ borderColor: tipsData.currentPhaseTips.color, borderWidth: '2px' }}>
           <div className="phase-header">
             <div 
               className="phase-icon-circle"
-              style={{ backgroundColor: `${phaseInfo.color}20` }}
+              style={{ backgroundColor: `${tipsData.currentPhaseTips.color}20` }}
             >
-              <span className="phase-icon" style={{ color: phaseInfo.color }}>
-                {iconMap[phaseInfo.icon] || '💡'}
+              <span className="phase-icon" style={{ color: tipsData.currentPhaseTips.color }}>
+                {iconMap[tipsData.currentPhaseTips.icon] || '💡'}
               </span>
             </div>
-            <h2 className="phase-title">{phaseInfo.phase}</h2>
+            <div>
+              <h2 className="phase-title">{tipsData.currentPhaseName || tipsData.currentPhaseTips.phase}</h2>
+              <p className="phase-subtitle" style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Your current detected phase
+              </p>
+            </div>
           </div>
 
           <div className="tips-list">
-            {phaseInfo.tips.map((tip, index) => (
+            {tipsData.currentPhaseTips.tips.map((tip, index) => (
               <div 
                 key={index} 
                 className="tip-item"
-                style={{ borderLeftColor: phaseInfo.color }}
+                style={{ borderLeftColor: tipsData.currentPhaseTips.color }}
               >
                 <h3 className="tip-title">{tip.title}</h3>
                 <p className="tip-description">{tip.description}</p>
@@ -108,11 +113,46 @@ function TipsPage() {
             ))}
           </div>
         </div>
-      ))}
+      )}
 
-      {/* General wellness tips */}
+      {/* All Phase Tips */}
+      <div className="all-phases-section">
+        <h2 className="section-title" style={{ fontSize: '1.125rem', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '16px', marginTop: '8px' }}>
+          All Phases
+        </h2>
+        {tipsData.allPhaseTips.map((phaseInfo) => (
+          <div key={phaseInfo.phase} className="phase-tips-card">
+            <div className="phase-header">
+              <div 
+                className="phase-icon-circle"
+                style={{ backgroundColor: `${phaseInfo.color}20` }}
+              >
+                <span className="phase-icon" style={{ color: phaseInfo.color }}>
+                  {iconMap[phaseInfo.icon] || '💡'}
+                </span>
+              </div>
+              <h2 className="phase-title">{phaseInfo.phase}</h2>
+            </div>
+
+            <div className="tips-list">
+              {phaseInfo.tips.map((tip, index) => (
+                <div 
+                  key={index} 
+                  className="tip-item"
+                  style={{ borderLeftColor: phaseInfo.color }}
+                >
+                  <h3 className="tip-title">{tip.title}</h3>
+                  <p className="tip-description">{tip.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Body Literacy Tips */}
       <div className="general-tips-card">
-        <h2 className="general-tips-title">General Wellness Tips</h2>
+        <h2 className="general-tips-title">Body Literacy & Self-Understanding</h2>
 
         <div className="general-tips-list">
           {tipsData.generalTips.map((tip, index) => (

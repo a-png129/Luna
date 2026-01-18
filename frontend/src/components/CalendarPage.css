@@ -162,6 +162,12 @@
   margin-top: 2px;
 }
 
+.ovulation-marker {
+  font-size: 0.75rem;
+  margin-top: 2px;
+  line-height: 1;
+}
+
 /* Month Progress Card */
 .progress-card {
   background: rgba(255, 255, 255, 0.8);
@@ -235,6 +241,42 @@
   margin-left: -8px;
   margin-top: -8px;
   transform-origin: 8px 8px;
+}
+
+.selected-day-info {
+  text-align: center;
+}
+
+.selected-day-temp {
+  margin-bottom: 16px;
+}
+
+.temp-value {
+  font-size: 2rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.temp-label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.ovulation-day-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(147, 167, 209, 0.15);
+  border-radius: 12px;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.ovulation-icon-small {
+  font-size: 1rem;
 }
 
 /* Phase Legend Card */

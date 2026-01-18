@@ -84,8 +84,8 @@
   opacity: 0.4;
 }
 
-/* Current Cycle Card */
-.cycle-card {
+/* BBT Card */
+.bbt-card {
   background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(10px);
   border-radius: 1.5rem;
@@ -93,6 +93,160 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   border: 1px solid var(--border-color);
   margin-bottom: 24px;
+  text-align: center;
+}
+
+.bbt-display {
+  margin: 24px 0;
+}
+
+.bbt-value {
+  font-size: 3rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.bbt-trend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.trend-icon {
+  font-size: 1.25rem;
+}
+
+.trend-label {
+  font-weight: 500;
+}
+
+.bbt-note {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-top: 16px;
+}
+
+/* Phase Card */
+.phase-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 1.5rem;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--border-color);
+  margin-bottom: 24px;
+}
+
+.phase-dot-large {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+
+.phase-content {
+  margin-top: 16px;
+}
+
+.phase-name {
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.phase-description {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.ovulation-info {
+  margin-top: 16px;
+  padding: 12px;
+  background: rgba(147, 167, 209, 0.1);
+  border-radius: 0.75rem;
+  border-left: 3px solid #93a7d1;
+}
+
+.ovulation-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.ovulation-icon {
+  font-size: 1.25rem;
+}
+
+.ovulation-details {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Prediction Card */
+.prediction-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 1.5rem;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(147, 167, 209, 0.2);
+  margin-bottom: 24px;
+}
+
+.confidence-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: white;
+}
+
+.prediction-content {
+  margin-top: 16px;
+}
+
+.prediction-text {
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.prediction-note {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  line-height: 1.5;
+}
+
+/* Insight Card */
+.insight-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 1.5rem;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(147, 167, 209, 0.2);
+  margin-bottom: 24px;
+}
+
+.insight-text {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-top: 12px;
+  font-style: italic;
 }
 
 .card-header {

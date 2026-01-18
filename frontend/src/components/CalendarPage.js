@@ -79,6 +79,11 @@ function CalendarPage() {
     return dayData ? dayData.phaseColor : null;
   };
 
+  const getDayData = (day) => {
+    if (!calendarData) return null;
+    return calendarData.calendarData.find(d => d.day === day);
+  };
+
   // Calculate progress based on selectedDate, but ensure it's within the current month
   const selectedDay = selectedDate.getFullYear() === year && selectedDate.getMonth() === month
     ? selectedDate.getDate()
@@ -102,7 +107,7 @@ function CalendarPage() {
       {/* Header with mascot */}
       <div className="calendar-header">
         <div className="header-content">
-          <h1 className="calendar-title">Cycle Calendar</h1>
+          <h1 className="calendar-title">Temperature Calendar</h1>
           <div className="mascot-circle-small">
             <img 
               src="/images/mascot.png" 
@@ -113,7 +118,7 @@ function CalendarPage() {
             <span className="mascot-emoji-fallback-small" style={{ display: 'none' }}>🦘</span>
           </div>
         </div>
-        <p className="calendar-subtitle">Track your phases</p>
+        <p className="calendar-subtitle">View your temperature readings</p>
       </div>
 
       {/* Calendar Card */}
@@ -160,6 +165,8 @@ function CalendarPage() {
               year === selectedDate.getFullYear();
 
             const phaseDotColor = getPhaseForDay(day);
+            const dayData = getDayData(day);
+            const isOvulationDay = dayData?.isOvulationDay;
 
             return (
               <button
@@ -168,7 +175,12 @@ function CalendarPage() {
                 className={`calendar-day ${isSelected ? 'selected' : ''}`}
               >
                 <span className="day-number">{day}</span>
-                {phaseDotColor && (
+                {isOvulationDay && (
+                  <div className="ovulation-marker" title="Ovulation detected">
+                    ✨
+                  </div>
+                )}
+                {phaseDotColor && !isOvulationDay && (
                   <div
                     className="phase-dot"
                     style={{ backgroundColor: phaseDotColor }}
@@ -180,78 +192,62 @@ function CalendarPage() {
         </div>
       </div>
 
-      {/* Month Progress Card */}
-      <div className="progress-card">
-        <h3 className="progress-title">Month Progress</h3>
-        
-        <div className="progress-ring-container">
-          <div className="progress-ring-wrapper">
-            {/* Background ring */}
-            <svg className="progress-ring" viewBox="0 0 200 200">
-              <circle
-                cx="100"
-                cy="100"
-                r="88"
-                fill="none"
-                stroke="#d4d8ed"
-                strokeWidth="8"
-              />
-              {/* Progress ring */}
-              <circle
-                cx="100"
-                cy="100"
-                r="88"
-                fill="none"
-                stroke="url(#gradient)"
-                strokeWidth="8"
-                strokeDasharray={`${progress * circumference} ${circumference}`}
-                strokeLinecap="round"
-                transform="rotate(-90 100 100)"
-              />
-              <defs>
-                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#9d7089" />
-                  <stop offset="100%" stopColor="#93a7d1" />
-                </linearGradient>
-              </defs>
-            </svg>
-
-            {/* Center content */}
-            <div className="progress-center">
-              <div className="progress-day-number">{selectedDay}</div>
-              <div className="progress-day-label">of {daysInMonth}</div>
+      {/* Selected Day Info Card */}
+      {calendarData && (() => {
+        const selectedDayData = getDayData(selectedDay);
+        return selectedDayData && selectedDayData.hasReading ? (
+          <div className="progress-card">
+            <h3 className="progress-title">Selected Day</h3>
+            
+            <div className="selected-day-info">
+              <div className="selected-day-temp">
+                <div className="temp-value">{selectedDayData.temperature}°C</div>
+                <div className="temp-label">Basal Body Temperature</div>
+              </div>
+              {selectedDayData.isOvulationDay && (
+                <div className="ovulation-day-badge">
+                  <span className="ovulation-icon-small">✨</span>
+                  <span>Ovulation Detected</span>
+                </div>
+              )}
+              {selectedDayData.phase && (
+                <div className="selected-day-phase" style={{ marginTop: '12px', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                  Phase: {selectedDayData.phase}
+                </div>
+              )}
             </div>
-
-            {/* Selected date indicator dot */}
-            <div
-              className="progress-indicator-dot"
-              style={{
-                transform: `rotate(${progress * 360}deg) translateY(-88px) rotate(-${progress * 360}deg)`,
-                backgroundColor: selectedDayPhaseColor || '#9d7089',
-              }}
-            />
           </div>
-        </div>
-      </div>
+        ) : selectedDayData ? (
+          <div className="progress-card">
+            <h3 className="progress-title">Selected Day</h3>
+            <div className="selected-day-info">
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No temperature reading for this day</p>
+            </div>
+          </div>
+        ) : null;
+      })()}
 
       {/* Phase Legend Card */}
       <div className="legend-card">
-        <h3 className="legend-title">Phase Legend</h3>
+        <h3 className="legend-title">Detected Phases</h3>
         
         <div className="legend-items">
           <div className="legend-item">
-            <div className="legend-dot" style={{ backgroundColor: '#c14a4a' }}></div>
-            <span className="legend-text">Period (Days 1-5)</span>
-          </div>
-          <div className="legend-item">
             <div className="legend-dot" style={{ backgroundColor: '#93a7d1' }}></div>
-            <span className="legend-text">Ovulation (Days 12-16)</span>
+            <span className="legend-text">Pre-Ovulation / Ovulation</span>
           </div>
           <div className="legend-item">
             <div className="legend-dot" style={{ backgroundColor: '#9d7089' }}></div>
-            <span className="legend-text">Luteal Phase (Days 17-28)</span>
+            <span className="legend-text">Luteal Phase (Post-Ovulation)</span>
+          </div>
+          <div className="legend-item">
+            <div className="legend-dot" style={{ backgroundColor: '#c14a4a' }}></div>
+            <span className="legend-text">Pre-Menstrual</span>
           </div>
         </div>
+        <p className="legend-note" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '12px', fontStyle: 'italic' }}>
+          Phases are detected from your temperature patterns, not calendar dates.
+        </p>
       </div>
     </div>
   );

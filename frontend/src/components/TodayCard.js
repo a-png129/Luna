@@ -21,7 +21,7 @@ const phaseInfo = {
     image: '/images/phase-ovulation.png',
     emoji: '🟠', // Fallback
     color: '#93a7d1',
-    description: 'Days 14-16: Peak fertility. BBT rises 0.3-0.5°C.'
+    description: 'Ovulation detected: BBT rises 0.3-0.5°C and stays elevated.'
   },
   luteal: {
     name: 'Luteal Phase',
@@ -71,7 +71,12 @@ function TodayCard({ todayData }) {
           </div>
           <div>
             <div className="phase-name">{info.name}</div>
-            <div className="cycle-day">Cycle Day {todayData.cycleDay || '?'}</div>
+            {todayData.daysSinceOvulation !== null && todayData.daysSinceOvulation > 0 && (
+              <div className="cycle-day">{todayData.daysSinceOvulation} day{todayData.daysSinceOvulation !== 1 ? 's' : ''} past ovulation</div>
+            )}
+            {todayData.phaseName && todayData.phaseName !== info.name && (
+              <div className="cycle-day">{todayData.phaseName}</div>
+            )}
           </div>
         </div>
 

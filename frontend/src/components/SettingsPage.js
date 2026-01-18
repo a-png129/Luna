@@ -160,8 +160,8 @@ function SettingsPage({ onSignOut }) {
 
           <div className="setting-item">
             <div className="setting-info">
-              <div className="setting-label">Ovulation Window</div>
-              <div className="setting-description">Track your fertile window</div>
+              <div className="setting-label">Ovulation Detection</div>
+              <div className="setting-description">Get notified when ovulation is detected</div>
             </div>
             <Switch
               checked={settings.notifications.ovulationWindow}
@@ -197,20 +197,6 @@ function SettingsPage({ onSignOut }) {
             </select>
           </div>
 
-          <div className="preference-item">
-            <label className="preference-label">Cycle Length</label>
-            <select 
-              className="preference-select"
-              value={settings.preferences.cycleLength}
-              onChange={(e) => handlePreferenceChange('cycleLength', parseInt(e.target.value))}
-            >
-              <option value={21}>21 days</option>
-              <option value={24}>24 days</option>
-              <option value={28}>28 days (Average)</option>
-              <option value={30}>30 days</option>
-              <option value={35}>35 days</option>
-            </select>
-          </div>
         </div>
       </div>
 

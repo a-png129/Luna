@@ -2,11 +2,13 @@ import React from 'react';
 import './WidgetSimulation.css';
 
 const phaseColors = {
-  menstrual: { bg: '#c41e3a', text: '#fff' },
-  follicular: { bg: '#4caf50', text: '#fff' },
-  ovulation: { bg: '#ff9800', text: '#fff' },
-  luteal: { bg: '#9c27b0', text: '#fff' },
-  unknown: { bg: '#757575', text: '#fff' }
+  'pre-ovulation': { bg: '#93a7d1', text: '#fff' },
+  'ovulation': { bg: '#93a7d1', text: '#fff' },
+  'luteal': { bg: '#9d7089', text: '#fff' },
+  'pre-menstrual': { bg: '#c14a4a', text: '#fff' },
+  'insufficient-data': { bg: '#9d7089', text: '#fff' },
+  'transition': { bg: '#93a7d1', text: '#fff' },
+  'unknown': { bg: '#9d7089', text: '#fff' }
 };
 
 const phaseImages = {
@@ -66,8 +68,10 @@ function WidgetSimulation({ todayData }) {
             <span className="widget-emoji-fallback" style={{ display: 'none' }}>{phaseEmojis[phase]}</span>
           </div>
           <div>
-            <div className="widget-phase">{phase.charAt(0).toUpperCase() + phase.slice(1)}</div>
-            <div className="widget-day">Day {todayData.cycleDay || '?'}</div>
+            <div className="widget-phase">{todayData.phaseName || 'Building Baseline'}</div>
+            {todayData.daysSinceOvulation !== null && todayData.daysSinceOvulation > 0 && (
+              <div className="widget-day">{todayData.daysSinceOvulation} day{todayData.daysSinceOvulation !== 1 ? 's' : ''} past ovulation</div>
+            )}
           </div>
         </div>
         

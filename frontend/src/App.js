@@ -4,8 +4,6 @@ import './App.css';
 import LoginPage from './components/LoginPage';
 import BottomNav from './components/BottomNav';
 import HomePage from './components/HomePage';
-import CalendarPage from './components/CalendarPage';
-import DataPage from './components/DataPage';
 import TipsPage from './components/TipsPage';
 import SettingsPage from './components/SettingsPage';
 
@@ -78,9 +76,7 @@ function App() {
         </div>
       )}
 
-      {activeTab === 'home' && <HomePage todayData={todayData} />}
-      {activeTab === 'calendar' && <CalendarPage />}
-      {activeTab === 'data' && <DataPage />}
+      {activeTab === 'home' && <HomePage />}
       {activeTab === 'tips' && <TipsPage />}
       {activeTab === 'settings' && <SettingsPage onSignOut={handleSignOut} />}
 

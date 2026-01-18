@@ -41,8 +41,7 @@ let userSettings = {
     ovulationWindow: false
   },
   preferences: {
-    temperatureUnit: 'Celsius',
-    cycleLength: 28
+    temperatureUnit: 'Celsius'
   },
   device: {
     connected: false,
@@ -53,70 +52,216 @@ let userSettings = {
 // Initialize with sample data for demo
 initializeSampleData();
 
-// ========== CYCLE PHASE LOGIC ==========
+// ========== PHYSIOLOGY-FIRST CYCLE DETECTION ==========
 
 /**
- * Calculate cycle phase based on BBT readings
- * Simplified logic for MVP:
- * - Menstrual: Days 1-5 (low BBT)
- * - Follicular: Days 6-13 (rising BBT)
- * - Ovulation: Days 14-16 (peak BBT, typically 0.3-0.5°C rise)
- * - Luteal: Days 17-28 (sustained high BBT)
+ * Detect ovulation based on BBT pattern (physiology-first approach)
+ * Uses the "3-over-6" rule: 3 consecutive days at least 0.3°C above the previous 6 days
+ * @param {Array} readings - Sorted temperature readings (oldest to newest)
+ * @returns {Object|null} - Ovulation detection info or null
  */
-function calculateCyclePhase(readings) {
-  if (readings.length === 0) {
-    return { phase: 'unknown', day: 0, tip: 'Start tracking your BBT to determine your cycle phase.' };
+function detectOvulation(readings) {
+  if (readings.length < 9) {
+    return null; // Need at least 9 days of data
   }
 
-  // Sort readings by date (newest first)
+  // Sort from oldest to newest
+  const sorted = [...readings].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  
+  // Look for ovulation pattern in the last 30 days
+  const recentReadings = sorted.slice(-30);
+  
+  for (let i = 6; i < recentReadings.length - 2; i++) {
+    // Get 6 days before potential ovulation
+    const baselineDays = recentReadings.slice(i - 6, i);
+    const baselineAvg = baselineDays.reduce((sum, r) => sum + r.temperature, 0) / baselineDays.length;
+    
+    // Check next 3 days for sustained rise
+    const riseDays = recentReadings.slice(i, i + 3);
+    const riseAvg = riseDays.reduce((sum, r) => sum + r.temperature, 0) / riseDays.length;
+    
+    // Check if all 3 days are above baseline
+    const allAboveBaseline = riseDays.every(r => r.temperature >= baselineAvg + 0.1);
+    const avgRise = riseAvg - baselineAvg;
+    
+    // Ovulation detected if: 3 days are 0.3°C+ above baseline average
+    if (avgRise >= 0.3 && allAboveBaseline) {
+      return {
+        detected: true,
+        date: new Date(riseDays[0].timestamp),
+        confidence: avgRise >= 0.5 ? 'high' : avgRise >= 0.4 ? 'medium' : 'low',
+        temperatureRise: parseFloat(avgRise.toFixed(2)),
+        baselineTemp: parseFloat(baselineAvg.toFixed(2)),
+        postOvulationTemp: parseFloat(riseAvg.toFixed(2))
+      };
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Predict period start based on detected ovulation
+ * Period typically starts 12-14 days after ovulation
+ * @param {Object} ovulation - Ovulation detection result
+ * @returns {Object} - Period prediction with confidence window
+ */
+function predictPeriodStart(ovulation) {
+  if (!ovulation || !ovulation.detected) {
+    return null;
+  }
+
+  const ovulationDate = new Date(ovulation.date);
+  const earliestPeriod = new Date(ovulationDate);
+  earliestPeriod.setDate(earliestPeriod.getDate() + 12);
+  
+  const latestPeriod = new Date(ovulationDate);
+  latestPeriod.setDate(latestPeriod.getDate() + 14);
+  
+  const mostLikely = new Date(ovulationDate);
+  mostLikely.setDate(mostLikely.getDate() + 13);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const daysUntilEarliest = Math.ceil((earliestPeriod - today) / (1000 * 60 * 60 * 24));
+  const daysUntilLatest = Math.ceil((latestPeriod - today) / (1000 * 60 * 60 * 24));
+  const daysUntilMostLikely = Math.ceil((mostLikely - today) / (1000 * 60 * 60 * 24));
+
+  return {
+    windowStart: earliestPeriod.toISOString().split('T')[0],
+    windowEnd: latestPeriod.toISOString().split('T')[0],
+    mostLikely: mostLikely.toISOString().split('T')[0],
+    daysUntilEarliest: daysUntilEarliest,
+    daysUntilLatest: daysUntilLatest,
+    daysUntilMostLikely: daysUntilMostLikely,
+    confidence: ovulation.confidence,
+    isInWindow: today >= earliestPeriod && today <= latestPeriod
+  };
+}
+
+/**
+ * Determine current phase based on BBT patterns (not calendar)
+ * @param {Array} readings - Temperature readings
+ * @returns {Object} - Current phase information
+ */
+function detectCurrentPhase(readings) {
+  if (readings.length === 0) {
+    return {
+      phase: 'unknown',
+      phaseName: 'Unknown',
+      description: 'Start tracking your BBT daily to understand your body\'s patterns.',
+      tip: 'Take your temperature first thing in the morning for the most accurate readings.',
+      temperature: null,
+      trend: null,
+      daysSinceOvulation: null
+    };
+  }
+
+  // Sort from newest to oldest
   const sorted = [...readings].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   const latest = sorted[0];
-  
-  // Calculate days since first reading (simplified cycle day calculation)
-  const firstReading = sorted[sorted.length - 1];
-  const daysSinceStart = Math.floor((new Date(latest.timestamp) - new Date(firstReading.timestamp)) / (1000 * 60 * 60 * 24));
-  const cycleDay = (daysSinceStart % 28) + 1; // Assume 28-day cycle for MVP
-
-  // Get average BBT for baseline
-  const avgBBT = sorted.slice(0, 7).reduce((sum, r) => sum + r.temperature, 0) / Math.min(7, sorted.length);
   const currentBBT = latest.temperature;
 
-  // Determine phase based on cycle day and BBT pattern
-  let phase, tip;
+  // Detect ovulation
+  const ovulation = detectOvulation([...readings].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)));
   
-  if (cycleDay >= 1 && cycleDay <= 5) {
-    phase = 'menstrual';
-    tip = 'Menstrual phase: Rest and hydrate. Your BBT is typically lower during this phase.';
-  } else if (cycleDay >= 6 && cycleDay <= 13) {
-    phase = 'follicular';
-    tip = 'Follicular phase: Energy is rising! Great time for new activities and planning.';
-  } else if (cycleDay >= 14 && cycleDay <= 16) {
-    phase = 'ovulation';
-    tip = 'Ovulation window: Peak fertility. You may notice a slight BBT rise (0.3-0.5°C).';
-  } else {
-    phase = 'luteal';
-    tip = 'Luteal phase: Progesterone is high. BBT stays elevated. Self-care is important.';
-  }
-
-  // Enhanced logic: Check for BBT rise pattern (ovulation indicator)
+  // Calculate temperature trend
+  let trend = 'stable';
   if (sorted.length >= 3) {
     const recent3 = sorted.slice(0, 3).map(r => r.temperature);
     const avgRecent = recent3.reduce((a, b) => a + b) / 3;
     const older3 = sorted.slice(3, 6).map(r => r.temperature);
-    const avgOlder = older3.length > 0 ? older3.reduce((a, b) => a + b) / older3.length : avgRecent;
-    
-    if (avgRecent - avgOlder >= 0.3 && cycleDay >= 12 && cycleDay <= 18) {
-      phase = 'ovulation';
-      tip = 'Ovulation detected! BBT rise of ' + (avgRecent - avgOlder).toFixed(2) + '°C indicates fertile window.';
+    if (older3.length >= 3) {
+      const avgOlder = older3.reduce((a, b) => a + b) / 3;
+      if (avgRecent - avgOlder >= 0.2) {
+        trend = 'rising';
+      } else if (avgOlder - avgRecent >= 0.2) {
+        trend = 'falling';
+      }
     }
   }
 
+  // Determine phase based on ovulation detection
+  let phase, phaseName, description, tip, daysSinceOvulation = null;
+
+  if (ovulation && ovulation.detected) {
+    const ovulationDate = new Date(ovulation.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    ovulationDate.setHours(0, 0, 0, 0);
+    
+    daysSinceOvulation = Math.floor((today - ovulationDate) / (1000 * 60 * 60 * 24));
+    
+    if (daysSinceOvulation < 0) {
+      // Before detected ovulation
+      phase = 'pre-ovulation';
+      phaseName = 'Pre-Ovulation';
+      description = 'Your body is preparing for ovulation. BBT is typically lower during this phase.';
+      tip = 'Your temperature is in the lower range. This is a good time for planning and starting new projects.';
+    } else if (daysSinceOvulation === 0) {
+      // Day of ovulation
+      phase = 'ovulation';
+      phaseName = 'Ovulation Detected';
+      description = `Temperature rise detected! Your BBT increased by ${ovulation.temperatureRise}°C, indicating ovulation.`;
+      tip = 'Your body has released an egg. Energy and mood may be at their peak.';
+    } else if (daysSinceOvulation <= 14) {
+      // Luteal phase (post-ovulation)
+      phase = 'luteal';
+      phaseName = 'Luteal Phase';
+      description = `You're ${daysSinceOvulation} day${daysSinceOvulation !== 1 ? 's' : ''} past ovulation. BBT remains elevated.`;
+      tip = 'Your body is in the luteal phase. Progesterone is high, which can affect energy and mood.';
+    } else {
+      // Likely in or approaching period
+      phase = 'pre-menstrual';
+      phaseName = 'Pre-Menstrual';
+      description = `It's been ${daysSinceOvulation} days since ovulation. Your period may start soon.`;
+      tip = 'Your period is likely approaching. Listen to your body and prioritize rest.';
+    }
+  } else {
+    // No ovulation detected yet - determine based on temperature pattern
+    if (sorted.length < 6) {
+      phase = 'insufficient-data';
+      phaseName = 'Building Baseline';
+      description = 'Keep tracking daily. We need more readings to detect your body\'s patterns.';
+      tip = 'Consistency is key. Take your temperature at the same time each morning.';
+    } else {
+      // Check if temperature is in lower range (pre-ovulation) or higher range (post-ovulation)
+      const avgBBT = sorted.slice(0, 7).reduce((sum, r) => sum + r.temperature, 0) / Math.min(7, sorted.length);
+      
+      if (currentBBT < avgBBT - 0.1) {
+        phase = 'pre-ovulation';
+        phaseName = 'Pre-Ovulation';
+        description = 'Your BBT is in the lower range, suggesting you\'re in the pre-ovulation phase.';
+        tip = 'Lower temperatures are typical before ovulation. This is often a time of rising energy.';
+      } else if (currentBBT > avgBBT + 0.2) {
+        phase = 'post-ovulation';
+        phaseName = 'Post-Ovulation';
+        description = 'Your BBT is elevated, suggesting you may have ovulated recently.';
+        tip = 'Elevated temperatures typically indicate the luteal phase. Energy may fluctuate.';
+      } else {
+        phase = 'transition';
+        phaseName = 'Transition Phase';
+        description = 'Your temperature pattern suggests you may be approaching ovulation.';
+        tip = 'Watch for a sustained temperature rise to confirm ovulation.';
+      }
+    }
+  }
+
+  // Get period prediction
+  const periodPrediction = predictPeriodStart(ovulation);
+
   return {
     phase,
-    day: cycleDay,
+    phaseName,
+    description,
     tip,
     temperature: currentBBT,
-    avgBBT: avgBBT.toFixed(2)
+    trend,
+    ovulation,
+    periodPrediction,
+    daysSinceOvulation,
+    avgBBT: sorted.slice(0, 7).reduce((sum, r) => sum + r.temperature, 0) / Math.min(7, sorted.length)
   };
 }
 
@@ -180,7 +325,7 @@ app.get('/data', (req, res) => {
   }
 });
 
-// GET /today - Get today's summary (temperature, phase, tip)
+// GET /today - Get today's summary (temperature, phase, prediction)
 app.get('/today', (req, res) => {
   try {
     const today = new Date();
@@ -193,17 +338,23 @@ app.get('/today', (req, res) => {
       return readingDate.getTime() === today.getTime();
     });
     
-    // Calculate cycle phase
-    const phaseInfo = calculateCyclePhase(temperatureReadings);
+    // Detect current phase using BBT patterns
+    const phaseInfo = detectCurrentPhase(temperatureReadings);
     
     res.json({
       date: today.toISOString().split('T')[0],
       temperature: todayReading ? todayReading.temperature : null,
       hasReading: !!todayReading,
       phase: phaseInfo.phase,
-      cycleDay: phaseInfo.day,
+      phaseName: phaseInfo.phaseName,
+      description: phaseInfo.description,
       tip: phaseInfo.tip,
-      avgBBT: phaseInfo.avgBBT
+      trend: phaseInfo.trend,
+      avgBBT: parseFloat(phaseInfo.avgBBT.toFixed(2)),
+      ovulation: phaseInfo.ovulation,
+      periodPrediction: phaseInfo.periodPrediction,
+      daysSinceOvulation: phaseInfo.daysSinceOvulation,
+      readingsCount: temperatureReadings.length
     });
   } catch (error) {
     console.error('Error fetching today data:', error);
@@ -211,32 +362,30 @@ app.get('/today', (req, res) => {
   }
 });
 
-// GET /phase - Get current cycle phase info
+// GET /phase - Get current cycle phase info (physiology-based)
 app.get('/phase', (req, res) => {
   try {
-    const phaseInfo = calculateCyclePhase(temperatureReadings);
+    const phaseInfo = detectCurrentPhase(temperatureReadings);
     res.json(phaseInfo);
   } catch (error) {
-    console.error('Error calculating phase:', error);
+    console.error('Error detecting phase:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// GET /calendar - Get calendar data with phase information for a month
+// GET /calendar - Get calendar data with phase information (physiology-based)
 app.get('/calendar', (req, res) => {
   try {
     const year = parseInt(req.query.year) || new Date().getFullYear();
     const month = parseInt(req.query.month) || new Date().getMonth();
     
-    // Calculate cycle phase for each day of the month
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const calendarData = [];
     
-    // Get current cycle info
-    const phaseInfo = calculateCyclePhase(temperatureReadings);
-    const currentCycleDay = phaseInfo.day;
+    // Detect ovulation for reference
+    const ovulation = detectOvulation(temperatureReadings);
+    const phaseInfo = detectCurrentPhase(temperatureReadings);
     
-    // Calculate which cycle day each calendar day corresponds to
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
       const dateStr = date.toISOString().split('T')[0];
@@ -247,61 +396,55 @@ app.get('/calendar', (req, res) => {
         return readingDate.toISOString().split('T')[0] === dateStr;
       });
       
-      // Calculate cycle day (simplified - assumes 28 day cycle)
-      // For MVP, we'll calculate based on the current cycle day
-      const daysSinceStart = dayReading 
-        ? Math.floor((new Date(dayReading.timestamp) - new Date(temperatureReadings[temperatureReadings.length - 1].timestamp)) / (1000 * 60 * 60 * 24))
-        : null;
-      
-      let cycleDay = null;
       let phase = null;
       let phaseColor = null;
+      let isOvulationDay = false;
       
       if (dayReading) {
-        // Calculate cycle day from readings
-        const sorted = [...temperatureReadings].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-        const firstReading = sorted[0];
-        const daysSinceFirst = Math.floor((new Date(dayReading.timestamp) - new Date(firstReading.timestamp)) / (1000 * 60 * 60 * 24));
-        cycleDay = (daysSinceFirst % 28) + 1;
-        
-        // Determine phase
-        if (cycleDay >= 1 && cycleDay <= 5) {
-          phase = 'menstrual';
-          phaseColor = '#c14a4a';
-        } else if (cycleDay >= 12 && cycleDay <= 16) {
-          phase = 'ovulation';
-          phaseColor = '#93a7d1';
-        } else if (cycleDay >= 17 && cycleDay <= 28) {
-          phase = 'luteal';
-          phaseColor = '#9d7089';
+        // Check if this is the ovulation day
+        if (ovulation && ovulation.detected) {
+          const ovulationDateStr = ovulation.date.toISOString().split('T')[0];
+          if (dateStr === ovulationDateStr) {
+            isOvulationDay = true;
+            phase = 'ovulation';
+            phaseColor = '#93a7d1';
+          } else {
+            // Determine phase based on days since ovulation
+            const daysSinceOv = Math.floor((date - ovulation.date) / (1000 * 60 * 60 * 24));
+            if (daysSinceOv < 0) {
+              phase = 'pre-ovulation';
+              phaseColor = '#93a7d1';
+            } else if (daysSinceOv <= 14) {
+              phase = 'luteal';
+              phaseColor = '#9d7089';
+            } else {
+              phase = 'pre-menstrual';
+              phaseColor = '#c14a4a';
+            }
+          }
         } else {
-          phase = 'follicular';
-          phaseColor = null;
-        }
-      } else {
-        // Estimate based on current cycle day
-        // This is simplified - in production, you'd track cycle start dates
-        const estimatedCycleDay = ((currentCycleDay + (day - new Date().getDate())) % 28) + 1;
-        if (estimatedCycleDay >= 1 && estimatedCycleDay <= 5) {
-          phase = 'menstrual';
-          phaseColor = '#c14a4a';
-        } else if (estimatedCycleDay >= 12 && estimatedCycleDay <= 16) {
-          phase = 'ovulation';
-          phaseColor = '#93a7d1';
-        } else if (estimatedCycleDay >= 17 && estimatedCycleDay <= 28) {
-          phase = 'luteal';
-          phaseColor = '#9d7089';
+          // No ovulation detected yet - use temperature to estimate
+          const sorted = [...temperatureReadings].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+          const avgBBT = sorted.reduce((sum, r) => sum + r.temperature, 0) / sorted.length;
+          
+          if (dayReading.temperature < avgBBT - 0.1) {
+            phase = 'pre-ovulation';
+            phaseColor = '#93a7d1';
+          } else if (dayReading.temperature > avgBBT + 0.2) {
+            phase = 'luteal';
+            phaseColor = '#9d7089';
+          }
         }
       }
       
       calendarData.push({
         day,
         date: dateStr,
-        cycleDay,
         phase,
         phaseColor,
         hasReading: !!dayReading,
-        temperature: dayReading ? dayReading.temperature : null
+        temperature: dayReading ? dayReading.temperature : null,
+        isOvulationDay: isOvulationDay
       });
     }
     
@@ -310,7 +453,7 @@ app.get('/calendar', (req, res) => {
       month,
       daysInMonth,
       calendarData,
-      currentCycleDay: phaseInfo.day,
+      ovulation: ovulation,
       currentPhase: phaseInfo.phase
     });
   } catch (error) {
@@ -336,82 +479,56 @@ app.get('/', (req, res) => {
   });
 });
 
-// GET /data/chart - Get BBT data formatted for charts (by cycle day)
+// GET /data/chart - Get BBT data formatted for charts with ovulation markers
 app.get('/data/chart', (req, res) => {
   try {
     const sorted = [...temperatureReadings].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
     
     if (sorted.length === 0) {
-      return res.json({ temperatureData: [], avgTemp: null });
+      return res.json({ 
+        temperatureData: [], 
+        avgTemp: null,
+        ovulationMarkers: []
+      });
     }
 
-    // Calculate cycle day for each reading
+    // Detect ovulation
+    const ovulation = detectOvulation(temperatureReadings);
+    
+    // Format data with day numbers (days since first reading)
     const firstReading = sorted[0];
-    const chartData = sorted.map(reading => {
+    const chartData = sorted.map((reading, index) => {
       const daysSinceFirst = Math.floor((new Date(reading.timestamp) - new Date(firstReading.timestamp)) / (1000 * 60 * 60 * 24));
-      const cycleDay = (daysSinceFirst % 28) + 1;
+      const isOvulationDay = ovulation && ovulation.detected && 
+        new Date(reading.timestamp).toISOString().split('T')[0] === ovulation.date.toISOString().split('T')[0];
+      
       return {
-        day: cycleDay,
+        day: daysSinceFirst + 1, // Day 1, 2, 3, etc.
         temp: reading.temperature,
-        date: reading.timestamp
+        date: reading.timestamp,
+        isOvulationDay: isOvulationDay || false
       };
     });
 
     // Calculate average temperature
     const avgTemp = sorted.reduce((sum, r) => sum + r.temperature, 0) / sorted.length;
 
+    // Get ovulation markers for the chart
+    const ovulationMarkers = ovulation && ovulation.detected ? [{
+      day: chartData.findIndex(d => d.isOvulationDay) + 1,
+      date: ovulation.date.toISOString().split('T')[0],
+      temperature: ovulation.postOvulationTemp,
+      confidence: ovulation.confidence
+    }] : [];
+
     res.json({
       temperatureData: chartData,
-      avgTemp: parseFloat(avgTemp.toFixed(1))
+      avgTemp: parseFloat(avgTemp.toFixed(1)),
+      ovulationMarkers: ovulationMarkers,
+      ovulation: ovulation
     });
   } catch (error) {
     console.error('Error fetching chart data:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// GET /data/mood - Get mood data (mock for MVP)
-app.get('/data/mood', (req, res) => {
-  try {
-    // Mock mood data - in production, this would come from a database
-    // For now, generate based on cycle day
-    const sorted = [...temperatureReadings].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    
-    if (sorted.length === 0) {
-      return res.json({ moodData: [], avgMood: null });
-    }
-
-    const firstReading = sorted[0];
-    const moodData = sorted.map((reading, index) => {
-      const daysSinceFirst = Math.floor((new Date(reading.timestamp) - new Date(firstReading.timestamp)) / (1000 * 60 * 60 * 24));
-      const cycleDay = (daysSinceFirst % 28) + 1;
-      
-      // Simulate mood based on cycle phase
-      let mood = 3; // neutral
-      if (cycleDay >= 1 && cycleDay <= 5) {
-        mood = 2 + Math.random(); // Lower during period
-      } else if (cycleDay >= 6 && cycleDay <= 13) {
-        mood = 3 + Math.random() * 1.5; // Rising during follicular
-      } else if (cycleDay >= 14 && cycleDay <= 16) {
-        mood = 4 + Math.random(); // High during ovulation
-      } else {
-        mood = 3 + Math.random() * 0.5; // Moderate during luteal
-      }
-      
-      return {
-        day: cycleDay,
-        mood: Math.round(mood * 10) / 10 // Round to 1 decimal
-      };
-    });
-
-    const avgMood = moodData.reduce((sum, d) => sum + d.mood, 0) / moodData.length;
-
-    res.json({
-      moodData: moodData.filter((d, i) => i % 2 === 0), // Return every other day for cleaner chart
-      avgMood: parseFloat(avgMood.toFixed(1))
-    });
-  } catch (error) {
-    console.error('Error fetching mood data:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -437,87 +554,121 @@ app.get('/data/export', (req, res) => {
   }
 });
 
-// GET /tips - Get tips based on current phase
+// GET /tips - Get tips based on detected phase (physiology-based)
 app.get('/tips', (req, res) => {
   try {
-    const phaseInfo = calculateCyclePhase(temperatureReadings);
+    const phaseInfo = detectCurrentPhase(temperatureReadings);
     const currentPhase = phaseInfo.phase;
 
-    // Static tips as fallback
-    const staticTips = {
-      menstrual: {
-        phase: "Menstruation",
-        icon: "heart",
-        color: "#c14a4a",
-        tips: [
-          {
-            title: "Rest & Recovery",
-            description: "Your body is working hard. Prioritize rest, gentle movement like walking or yoga, and plenty of sleep.",
-          },
-          {
-            title: "Iron-Rich Foods",
-            description: "Combat fatigue with iron-rich foods like leafy greens, lean meats, and legumes.",
-          },
-          {
-            title: "Heat Therapy",
-            description: "Use heating pads or warm baths to ease cramps and promote relaxation.",
-          },
-        ],
-      },
-      follicular: {
-        phase: "Follicular Phase",
+    // Tips based on detected phases (physiology-first)
+    const phaseTips = {
+      'pre-ovulation': {
+        phase: "Pre-Ovulation",
         icon: "sparkles",
         color: "#93a7d1",
         tips: [
           {
-            title: "Energy Rising",
-            description: "As estrogen increases, you may feel more energized. This is a great time to try new activities or tackle challenging projects.",
+            title: "Rising Energy",
+            description: "Your body is preparing for ovulation. Energy and motivation may be increasing. Great time for planning and starting new projects.",
           },
           {
-            title: "Strength Training",
-            description: "Your body responds well to strength training during this phase. Build muscle and boost metabolism.",
+            title: "Build Momentum",
+            description: "This phase often brings clarity and focus. Use this time to tackle tasks that require sustained attention.",
           },
           {
             title: "Social Connection",
-            description: "You might feel more social and outgoing. Great time to connect with friends and network.",
+            description: "You might feel more outgoing and social. Good time to connect with others and network.",
           },
         ],
       },
-      ovulation: {
-        phase: "Ovulation",
+      'ovulation': {
+        phase: "Ovulation Detected",
         icon: "activity",
         color: "#93a7d1",
         tips: [
           {
-            title: "Peak Energy",
-            description: "This is typically when you'll feel your best physically and mentally. Take advantage of peak performance.",
+            title: "Peak Performance",
+            description: "Your body has released an egg. Energy, mood, and cognitive function are often at their peak.",
           },
           {
-            title: "High-Intensity Workouts",
-            description: "Your body can handle more intense exercise. Try HIIT or challenging cardio sessions.",
+            title: "High-Intensity Activities",
+            description: "This is a great time for challenging workouts, important meetings, or creative projects.",
           },
           {
             title: "Communication",
-            description: "Communication skills peak during ovulation. Great time for important conversations or presentations.",
+            description: "Communication skills are often enhanced. Good time for important conversations.",
           },
         ],
       },
-      luteal: {
+      'luteal': {
         phase: "Luteal Phase",
         icon: "brain",
         color: "#9d7089",
         tips: [
           {
-            title: "Self-Care Focus",
-            description: "As energy decreases, focus on self-care. Listen to your body's needs for rest and nourishment.",
+            title: "Self-Care Priority",
+            description: "Progesterone is high. Listen to your body's need for rest, nourishment, and gentler movement.",
           },
           {
-            title: "Complex Carbs",
-            description: "Combat PMS symptoms with complex carbohydrates, magnesium-rich foods, and omega-3 fatty acids.",
+            title: "Stable Energy",
+            description: "Support your body with complex carbs, healthy fats, and adequate protein to maintain steady energy.",
           },
           {
-            title: "Gentle Exercise",
-            description: "Switch to gentler forms of exercise like yoga, pilates, or leisurely walks.",
+            title: "Gentle Movement",
+            description: "Yoga, walking, or stretching can feel better than high-intensity workouts during this phase.",
+          },
+        ],
+      },
+      'pre-menstrual': {
+        phase: "Pre-Menstrual",
+        icon: "heart",
+        color: "#c14a4a",
+        tips: [
+          {
+            title: "Rest & Recovery",
+            description: "Your period is approaching. Prioritize rest, gentle movement, and plenty of sleep.",
+          },
+          {
+            title: "Nourish Your Body",
+            description: "Iron-rich foods, magnesium, and omega-3s can help support your body through this transition.",
+          },
+          {
+            title: "Set Boundaries",
+            description: "It's okay to say no and protect your energy. Honor what your body needs.",
+          },
+        ],
+      },
+      'insufficient-data': {
+        phase: "Building Baseline",
+        icon: "brain",
+        color: "#9d7089",
+        tips: [
+          {
+            title: "Consistency Matters",
+            description: "Take your temperature at the same time each morning for the most accurate readings.",
+          },
+          {
+            title: "Track Daily",
+            description: "Daily tracking helps us detect your body's unique patterns and predict your period more accurately.",
+          },
+          {
+            title: "Trust the Process",
+            description: "Your body's signals are unique. We'll learn your patterns as you continue tracking.",
+          },
+        ],
+      },
+      'transition': {
+        phase: "Transition Phase",
+        icon: "sparkles",
+        color: "#93a7d1",
+        tips: [
+          {
+            title: "Watch for Patterns",
+            description: "Your temperature may be shifting. Keep tracking to detect when ovulation occurs.",
+          },
+          {
+            title: "Stay Consistent",
+            description: "Continue taking your temperature daily to catch the temperature rise that indicates ovulation.",
           },
         ],
       },
@@ -526,29 +677,30 @@ app.get('/tips', (req, res) => {
     const generalTips = [
       {
         icon: "utensils",
-        title: "Nutrition Throughout Your Cycle",
-        description: "Eat a balanced diet rich in whole foods, lean proteins, healthy fats, and plenty of fruits and vegetables. Stay hydrated throughout your cycle.",
+        title: "Nutrition for Body Literacy",
+        description: "Eat a balanced diet rich in whole foods. Your body's needs may shift throughout your cycle—listen and respond.",
       },
       {
         icon: "brain",
-        title: "Track Your Patterns",
-        description: "Keep notes on how you feel physically and emotionally throughout your cycle. Patterns will emerge that help you plan better.",
+        title: "Understand Your Patterns",
+        description: "Track how you feel alongside your temperature. Over time, you'll see patterns that help you understand your body better.",
       },
       {
         icon: "heart",
-        title: "Hormone Health",
-        description: "Support hormone balance with adequate sleep (7-9 hours), stress management, and regular exercise.",
+        title: "Body Wisdom",
+        description: "Your body communicates through temperature, energy, and mood. Learning to read these signals builds self-understanding.",
       },
     ];
 
-    // Get current phase tips
-    const currentPhaseTips = staticTips[currentPhase] || staticTips.luteal;
+    // Get tips for current detected phase
+    const currentPhaseTips = phaseTips[currentPhase] || phaseTips['insufficient-data'];
     
     // Get all phase tips for display
-    const allPhaseTips = Object.values(staticTips);
+    const allPhaseTips = Object.values(phaseTips);
 
     res.json({
       currentPhase: currentPhase,
+      currentPhaseName: phaseInfo.phaseName,
       currentPhaseTips: currentPhaseTips,
       allPhaseTips: allPhaseTips,
       generalTips: generalTips
