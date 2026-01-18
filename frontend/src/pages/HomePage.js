@@ -96,12 +96,6 @@ function HomePage() {
     setCurrentMonth(new Date(year, month + 1));
   };
 
-  const getPhaseForDay = (day) => {
-    if (!calendarData) return null;
-    const dayData = calendarData.calendarData.find(d => d.day === day);
-    return dayData ? dayData.phaseColor : null;
-  };
-
   const getDayData = (day) => {
     if (!calendarData) return null;
     return calendarData.calendarData.find(d => d.day === day);
@@ -130,6 +124,15 @@ function HomePage() {
       return dateStr;
     }
   };
+
+  const mostLikelyPeriod = todayData?.periodPrediction?.mostLikely; // YYYY-MM-DD
+  const expectedPeriod = mostLikelyPeriod
+    ? (() => {
+        const [y, m, d] = mostLikelyPeriod.split('-').map((v) => parseInt(v, 10));
+        if (!y || !m || !d) return null;
+        return { y, mIndex: m - 1, d };
+      })()
+    : null;
 
   return (
     <div className="data-page">
@@ -267,27 +270,38 @@ function HomePage() {
               month === selectedDate.getMonth() &&
               year === selectedDate.getFullYear();
 
-            const phaseDotColor = getPhaseForDay(day);
+            const now = new Date();
+            const isToday =
+              day === now.getDate() &&
+              month === now.getMonth() &&
+              year === now.getFullYear();
+
             const dayData = getDayData(day);
             const isOvulationDay = dayData?.isOvulationDay;
+            const isExpectedPeriodDay =
+              !!expectedPeriod &&
+              year === expectedPeriod.y &&
+              month === expectedPeriod.mIndex &&
+              day === expectedPeriod.d;
 
             return (
               <button
                 key={day}
                 onClick={() => setSelectedDate(new Date(year, month, day))}
-                className={`calendar-day ${isSelected ? 'selected' : ''}`}
+                className={`calendar-day ${isSelected ? 'selected' : ''} ${isToday ? 'today' : ''}`}
               >
                 <span className="day-number">{day}</span>
                 {isOvulationDay && (
                   <div className="ovulation-marker" title="Ovulation detected">
-                    ✨
+                    <img
+                      src="/images/star.png"
+                      alt="Ovulation"
+                      className="ovulation-star"
+                    />
                   </div>
                 )}
-                {phaseDotColor && !isOvulationDay && (
-                  <div
-                    className="phase-dot"
-                    style={{ backgroundColor: phaseDotColor }}
-                  />
+                {isExpectedPeriodDay && (
+                  <div className="period-dot" title="Expected period start" />
                 )}
               </button>
             );
