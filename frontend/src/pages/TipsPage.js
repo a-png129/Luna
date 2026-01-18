@@ -75,12 +75,12 @@ function TipsPage() {
         <div className="header-icons-group">
           <div className="mascot-circle-small">
             <img 
-              src="/images/mascot.png" 
-              alt="Luna Mascot" 
+              src="/images/bunny-magic-icon.png" 
+              alt="Luna AI" 
               className="mascot-image-small"
               onError={(e) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'block'; }}
             />
-            <span className="mascot-emoji-fallback-small" style={{ display: 'none' }}>🦘</span>
+            <span className="mascot-emoji-fallback-small" style={{ display: 'none' }}>🐰</span>
           </div>
         </div>
         <h1 className="tips-title">Chat with Luna</h1>
