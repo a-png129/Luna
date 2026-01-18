@@ -1,7 +1,16 @@
 import express from 'express';
 import { GoogleGenAI } from '@google/genai';
-import { temperatureReadings } from '../data/store.js';
+import { getAllTemperatures } from '../db/temperatureRepository.js';
 import { detectCurrentPhase } from '../domain/cycleAnalysis.js';
+
+// Helper to get readings in the format expected by cycle analysis
+function getTemperatureReadings() {
+  return getAllTemperatures().reverse().map(r => ({
+    id: r.id,
+    temperature: r.temperature,
+    timestamp: r.timestamp
+  }));
+}
 
 const router = express.Router();
 
@@ -243,9 +252,10 @@ router.get('/', async (req, res) => {
     }
 
     // Get current phase and today's data
-    const phaseInfo = detectCurrentPhase(temperatureReadings);
+    const readings = getTemperatureReadings();
+    const phaseInfo = detectCurrentPhase(readings);
     
-    const todayReading = temperatureReadings.find(r => {
+    const todayReading = readings.find(r => {
       const readingDate = new Date(r.timestamp);
       readingDate.setHours(0, 0, 0, 0);
       return readingDate.getTime() === today.getTime();
@@ -402,8 +412,8 @@ router.get('/', async (req, res) => {
     console.error('Error calling Gemini API:', error);
     
     // Fallback to static tips if Gemini fails
-    const { temperatureReadings, detectCurrentPhase } = req.app.locals;
-    const phaseInfo = detectCurrentPhase(temperatureReadings);
+    const fallbackReadings = getTemperatureReadings();
+    const phaseInfo = detectCurrentPhase(fallbackReadings);
     const staticTips = {
       greeting: "Hello! I'm here to help you understand your cycle.",
       phaseExplanation: phaseInfo.description || "Keep tracking your temperature daily to understand your body's patterns.",
@@ -457,11 +467,12 @@ router.post('/ask', async (req, res) => {
     }
 
     // Get current phase context for the conversation
-    const phaseInfo = detectCurrentPhase(temperatureReadings);
+    const askReadings = getTemperatureReadings();
+    const phaseInfo = detectCurrentPhase(askReadings);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    const todayReading = temperatureReadings.find(r => {
+    const todayReading = askReadings.find(r => {
       const readingDate = new Date(r.timestamp);
       readingDate.setHours(0, 0, 0, 0);
       return readingDate.getTime() === today.getTime();

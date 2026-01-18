@@ -1,21 +1,27 @@
 import express from 'express';
-import { temperatureReadings, userSettings } from '../data/store.js';
-import {
-  detectOvulation
-} from '../domain/cycleAnalysis.js';
+import { 
+  getAllTemperatures, 
+  getTemperaturesForDays,
+  getReadingsCount 
+} from '../db/temperatureRepository.js';
+import { detectOvulation } from '../domain/cycleAnalysis.js';
 
 const router = express.Router();
+
+// Helper to get readings in the format expected by cycle analysis
+function getReadingsArray() {
+  return getAllTemperatures().reverse().map(r => ({
+    id: r.id,
+    temperature: r.temperature,
+    timestamp: r.timestamp
+  }));
+}
 
 // GET /data - Get historical BBT data
 router.get('/', (req, res) => {
   try {
     const days = parseInt(req.query.days) || 14; // Default to 14 days
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - days);
-    
-    const filtered = temperatureReadings
-      .filter(r => new Date(r.timestamp) >= cutoff)
-      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    const filtered = getTemperaturesForDays(days);
     
     res.json({
       readings: filtered,
@@ -31,18 +37,20 @@ router.get('/', (req, res) => {
 // GET /data/chart - Get BBT data formatted for charts with ovulation markers
 router.get('/chart', (req, res) => {
   try {
-    const sorted = [...temperatureReadings].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    const readings = getReadingsArray();
+    const sorted = [...readings].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
     
     if (sorted.length === 0) {
       return res.json({ 
         temperatureData: [], 
         avgTemp: null,
-        ovulationMarkers: []
+        ovulationMarkers: [],
+        message: 'No temperature data yet. Add readings via POST /api/temperature or POST /api/temperature/seed'
       });
     }
 
     // Detect ovulation
-    const ovulation = detectOvulation(temperatureReadings);
+    const ovulation = detectOvulation(readings);
     
     // Format data with day numbers (days since first reading)
     const firstReading = sorted[0];
@@ -74,7 +82,8 @@ router.get('/chart', (req, res) => {
       temperatureData: chartData,
       avgTemp: parseFloat(avgTemp.toFixed(1)),
       ovulationMarkers: ovulationMarkers,
-      ovulation: ovulation
+      ovulation: ovulation,
+      totalReadings: getReadingsCount()
     });
   } catch (error) {
     console.error('Error fetching chart data:', error);
