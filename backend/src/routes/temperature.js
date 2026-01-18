@@ -27,21 +27,20 @@ function getReadingsArray() {
 // POST /temperature - Receive BBT reading from ESP32
 router.post('/', (req, res) => {
   try {
-    const { temperature, timestamp } = req.body;
+    console.log('Headers:', req.headers);
+    console.log('Body:', req.body);
+    console.log('temperatureC:', req.body.temperatureC);
     
-    if (!temperature || !timestamp) {
-      return res.status(400).json({ error: 'Missing temperature or timestamp' });
+    const { temperatureC } = req.body;
+    
+    if (!temperatureC) {
+      return res.status(400).json({ error: 'Missing temperature' });
     }
     
     // Convert Unix timestamp to ISO if needed
-    let isoTimestamp;
-    if (typeof timestamp === 'number' || /^\d+$/.test(timestamp)) {
-      isoTimestamp = new Date(parseInt(timestamp) * 1000).toISOString();
-    } else {
-      isoTimestamp = new Date(timestamp).toISOString();
-    }
+    let isoTimestamp = new Date().toISOString();
     
-    const reading = insertTemperature(parseFloat(temperature), isoTimestamp);
+    const reading = insertTemperature(parseFloat(temperatureC), isoTimestamp);
     
     // Cleanup old readings (keep last 90 days)
     cleanupOldReadings(90);
