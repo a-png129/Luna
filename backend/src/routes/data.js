@@ -86,6 +86,8 @@ router.get('/chart', (req, res) => {
       };
     });
 
+    console.log(`Chart data sample date: ${windowDates[0]}`);
+
     const tempsInWindow = temperatureData.map(d => d.temp).filter(v => typeof v === 'number');
     const avgTemp = tempsInWindow.length
       ? tempsInWindow.reduce((sum, v) => sum + v, 0) / tempsInWindow.length
