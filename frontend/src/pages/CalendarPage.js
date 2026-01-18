@@ -7,7 +7,7 @@ const monthNames = [
   "July", "August", "September", "October", "November", "December"
 ];
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
 
 function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -42,7 +42,7 @@ function CalendarPage() {
   const fetchCalendarData = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/calendar`, {
+      const response = await axios.get(`${API_BASE_URL}/temperature/calendar`, {
         params: { year, month }
       });
       setCalendarData(response.data);

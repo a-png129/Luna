@@ -7,7 +7,7 @@ import HomePage from './pages/HomePage';
 import TipsPage from './pages/TipsPage';
 import SettingsPage from './pages/SettingsPage';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -30,7 +30,7 @@ function App() {
     try {
       setLoading(true);
       const [todayRes, dataRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/today`),
+        axios.get(`${API_BASE_URL}/temperature/today`),
         axios.get(`${API_BASE_URL}/data?days=14`)
       ]);
       
