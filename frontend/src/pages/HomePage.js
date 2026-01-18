@@ -134,13 +134,6 @@ function HomePage() {
       <div className="data-card">
         <div className="card-header-row">
           <h2 className="card-title">Basal Body Temperature</h2>
-          <img 
-            src="/images/chart-icon.png" 
-            alt="Trending" 
-            className="trending-icon"
-            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }}
-          />
-          <span className="trending-icon-fallback" style={{ display: 'none' }}>📈</span>
         </div>
 
         <div className="chart-container">
