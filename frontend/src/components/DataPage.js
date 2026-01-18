@@ -206,9 +206,6 @@ function DataPage() {
           >
             Export Data as CSV
           </button>
-          <button className="export-button export-secondary">
-            Share with Healthcare Provider
-          </button>
         </div>
       </div>
     </div>
