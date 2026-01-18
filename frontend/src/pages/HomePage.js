@@ -17,7 +17,7 @@ const monthNames = [
   "July", "August", "September", "October", "November", "December"
 ];
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
 
 function HomePage() {
   const [temperatureData, setTemperatureData] = useState([]);
@@ -57,10 +57,10 @@ function HomePage() {
       setLoading(true);
       const [tempRes, calendarRes, todayRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/data/chart`),
-        axios.get(`${API_BASE_URL}/calendar`, {
+        axios.get(`${API_BASE_URL}/temperature/calendar`, {
           params: { year, month }
         }),
-        axios.get(`${API_BASE_URL}/today`)
+        axios.get(`${API_BASE_URL}/temperature/today`)
       ]);
 
       setTemperatureData(tempRes.data.temperatureData || []);

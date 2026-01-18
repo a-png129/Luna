@@ -3,7 +3,7 @@ import axios from 'axios';
 import Switch from '../components/Switch';
 import './SettingsPage.css';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
 
 function SettingsPage({ onSignOut }) {
   const [settings, setSettings] = useState(null);
